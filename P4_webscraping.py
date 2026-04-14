@@ -11,7 +11,17 @@ import matplotlib.pyplot as plt
 #the best/easiest way for the program to flow using custom functions
 def scrape_data():
     print("Scraping data...")
-    # data scraping person will code and parse with this (Rebeca?)
+
+    engine = sqlalchemy.create_engine("postgresql://postgres:your_password@localhost:5432/is303")
+
+    engine.execute("DROP TABLE IF EXISTS general_conference;")
+
+    data = scrape_basic_info()
+
+    df = pd.DataFrame(data)
+    df.to_sql("general_conference", engine, if_exists="append", index=False)
+
+    print("You've saved the scraped data to your postgres database.")
 
 def show_summaries():
     print("Showing summaries...")
@@ -72,13 +82,65 @@ def scrape_basic_info():
         kicker_tag = soup.find("p", class_="kicker")
         kicker = kicker_tag.text.strip() if kicker_tag else ""
 
-        talks_data.append({
-            "Speaker_Name": speaker,
-            "Talk_Name": title,
-            "Kicker": kicker
-        })
+        # ---- SCRIPTURE DICTIONARY (ADDED FEATURE) ----
+        scripture_dict = get_standard_works_dict()
+
+        scripture_dict["Speaker_Name"] = speaker
+        scripture_dict["Talk_Name"] = title
+        scripture_dict["Kicker"] = kicker
+
+        # find footnotes section
+        footnotes_section = soup.find("footer", class_="notes")
+
+        # handle talks with no footnotes
+        if footnotes_section is not None:
+            text = footnotes_section.text
+
+            # count how many times each book appears
+            for key in scripture_dict:
+                if key in ["Speaker_Name", "Talk_Name", "Kicker"]:
+                    continue
+                scripture_dict[key] = text.count(key)
+
+        # return completed dictionary per talk
+        talks_data.append(scripture_dict)
 
     return talks_data
+
+#Here are the standard works to count when scraping.
+def get_standard_works_dict():
+    return {
+        'Speaker_Name': '',
+        'Talk_Name': '',
+        'Kicker': '',
+        'Matthew': 0, 'Mark': 0, 'Luke': 0, 'John': 0, 'Acts': 0, 'Romans': 0,
+        '1 Corinthians': 0, '2 Corinthians': 0, 'Galatians': 0, 'Ephesians': 0,
+        'Philippians': 0, 'Colossians': 0, '1 Thessalonians': 0, '2 Thessalonians': 0,
+        '1 Timothy': 0, '2 Timothy': 0, 'Titus': 0, 'Philemon': 0, 'Hebrews': 0,
+        'James': 0, '1 Peter': 0, '2 Peter': 0, '1 John': 0, '2 John': 0,
+        '3 John': 0, 'Jude': 0, 'Revelation': 0,
+
+        'Genesis': 0, 'Exodus': 0, 'Leviticus': 0, 'Numbers': 0, 'Deuteronomy': 0,
+        'Joshua': 0, 'Judges': 0, 'Ruth': 0, '1 Samuel': 0, '2 Samuel': 0,
+        '1 Kings': 0, '2 Kings': 0, '1 Chronicles': 0, '2 Chronicles': 0,
+        'Ezra': 0, 'Nehemiah': 0, 'Esther': 0, 'Job': 0, 'Psalm': 0,
+        'Proverbs': 0, 'Ecclesiastes': 0, 'Song of Solomon': 0,
+
+        'Isaiah': 0, 'Jeremiah': 0, 'Lamentations': 0, 'Ezekiel': 0, 'Daniel': 0,
+        'Hosea': 0, 'Joel': 0, 'Amos': 0, 'Obadiah': 0, 'Jonah': 0,
+        'Micah': 0, 'Nahum': 0, 'Habakkuk': 0, 'Zephaniah': 0, 'Haggai': 0,
+        'Zechariah': 0, 'Malachi': 0,
+
+        '1 Nephi': 0, '2 Nephi': 0, 'Jacob': 0, 'Enos': 0, 'Jarom': 0, 'Omni': 0,
+        'Words of Mormon': 0, 'Mosiah': 0, 'Alma': 0, 'Helaman': 0,
+        '3 Nephi': 0, '4 Nephi': 0, 'Mormon': 0, 'Ether': 0, 'Moroni': 0,
+
+        'Doctrine and Covenants': 0,
+        'Moses': 0, 'Abraham': 0,
+        'Joseph Smith—Matthew': 0,
+        'Joseph Smith—History': 0,
+        'Articles of Faith': 0
+    }
 
 def main():
     user_input = input(
@@ -97,3 +159,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
